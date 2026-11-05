@@ -1,0 +1,55 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js build output & cache
+/.next/
+/out/
+build/
+dist/
+
+# TypeScript compiler cache
+*.tsbuildinfo
+next-env.d.ts
+
+# production
+*.pid
+*.seed
+*.pid.lock
+
+# misc & OS
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug & process logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env*.local
+.env
+.env.production
+.env.development
+
+# vercel
+.vercel
+
+# IDE & editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary scripts & scratch files
+gen_mod*.js
+write_mod*.js
+assemble_*.js
+fix_*.js
