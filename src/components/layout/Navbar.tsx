@@ -57,7 +57,7 @@ export default function Navbar() {
               ML<span className="text-[#D0D0D0]">VERSE</span>
             </span>
             <span className="text-[10px] uppercase font-semibold tracking-wider text-[#999999] -mt-1">
-              Chhatrapati Shivaji Maharaj University
+              Machine Learning Academy
             </span>
           </div>
         </Link>
