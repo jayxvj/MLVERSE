@@ -15,6 +15,7 @@ interface StudentContextType {
   signIn: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password?: string, fullName?: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
+  updateProfileAvatar: (avatarUrl: string) => Promise<void>;
   toggleCompleteLesson: (lessonId: string, moduleId?: string) => void;
   toggleBookmark: (lessonId: string) => void;
   saveNote: (lessonId: string, note: string) => void;
@@ -92,64 +93,66 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     setIsAuthModalOpen(false);
   };
 
-  // Sign In
+  // Sign In with real SQL validation
   const signIn = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
-    if (isSupabaseConfigured && supabase && password) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { success: false, error: error.message };
-      if (data.user) {
-        const profile: StudentProfile = {
-          id: data.user.id,
-          email: data.user.email || email,
-          fullName: data.user.user_metadata?.full_name || email.split('@')[0],
-        };
-        setState((prev) => ({ ...prev, user: profile }));
-        closeAuthModal();
-        return { success: true };
-      }
+    if (!email || !password) {
+      return { success: false, error: 'Email and password are required.' };
     }
 
-    // Local authentication fallback
-    const localProfile: StudentProfile = {
-      id: 'local-' + Date.now(),
-      email,
-      fullName: email.split('@')[0],
-    };
-    setState((prev) => ({ ...prev, user: localProfile }));
-    closeAuthModal();
-    return { success: true };
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to authenticate.' };
+      }
+
+      const profile: StudentProfile = {
+        id: data.user.id,
+        email: data.user.email,
+        fullName: data.user.fullName,
+        avatarUrl: data.user.avatarUrl || '',
+      };
+      setState((prev) => ({ ...prev, user: profile }));
+      closeAuthModal();
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error connecting to auth service' };
+    }
   };
 
-  // Sign Up
+  // Sign Up with real SQL persistence
   const signUp = async (email: string, password?: string, fullName?: string): Promise<{ success: boolean; error?: string }> => {
-    if (isSupabaseConfigured && supabase && password) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
-      });
-      if (error) return { success: false, error: error.message };
-      if (data.user) {
-        const profile: StudentProfile = {
-          id: data.user.id,
-          email: data.user.email || email,
-          fullName: fullName || email.split('@')[0],
-        };
-        setState((prev) => ({ ...prev, user: profile }));
-        closeAuthModal();
-        return { success: true };
-      }
+    if (!email || !password) {
+      return { success: false, error: 'Email and password are required.' };
     }
 
-    // Local registration fallback
-    const localProfile: StudentProfile = {
-      id: 'local-' + Date.now(),
-      email,
-      fullName: fullName || email.split('@')[0],
-    };
-    setState((prev) => ({ ...prev, user: localProfile }));
-    closeAuthModal();
-    return { success: true };
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to register account.' };
+      }
+
+      const profile: StudentProfile = {
+        id: data.user.id,
+        email: data.user.email,
+        fullName: data.user.fullName,
+        avatarUrl: data.user.avatarUrl || '',
+      };
+      setState((prev) => ({ ...prev, user: profile }));
+      closeAuthModal();
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error connecting to auth service' };
+    }
   };
 
   // Sign Out
@@ -158,6 +161,34 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
     }
     setState((prev) => ({ ...prev, user: null }));
+  };
+
+  // Update Profile Image & Autosave to SQL and Storage
+  const updateProfileAvatar = async (avatarUrl: string) => {
+    setState((prev) => {
+      const updatedUser: StudentProfile = prev.user
+        ? { ...prev.user, avatarUrl }
+        : { id: 'usr_local', email: 'scholar@mlverse.ai', fullName: 'Scholar', avatarUrl };
+      return { ...prev, user: updatedUser };
+    });
+
+    if (state.user?.email) {
+      try {
+        await fetch('/api/auth/update-avatar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: state.user.email, avatarUrl }),
+        });
+      } catch (err) {
+        console.error('Failed to sync avatar to database', err);
+      }
+    }
+
+    if (isSupabaseConfigured && supabase && state.user?.id) {
+      await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl }
+      });
+    }
   };
 
   const toggleCompleteLesson = (lessonId: string, moduleId?: string) => {
@@ -258,6 +289,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        updateProfileAvatar,
         toggleCompleteLesson,
         toggleBookmark,
         saveNote,

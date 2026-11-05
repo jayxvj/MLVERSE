@@ -178,7 +178,7 @@ export default function AuthModal() {
           </form>
 
           {/* Mode Switcher */}
-          <div className="text-center pt-3 border-t border-[#303030] text-xs text-[#999999]">
+          <div className="text-center pt-3 border-t border-[#303030] text-xs text-[#999999] space-y-2">
             {authModalMode === 'login' ? (
               <span>
                 Don&apos;t have an account?{' '}
@@ -210,10 +210,13 @@ export default function AuthModal() {
                 </button>
               </span>
             )}
+
+            <p className="text-[11px] text-[#666666] font-mono leading-relaxed pt-1">
+              Policy: Inactive accounts without a 15-day streak auto-expire after 7 days for automatic reset & re-registration.
+            </p>
           </div>
         </motion.div>
       </div>
     </AnimatePresence>
   );
 }
-

@@ -53,3 +53,9 @@ gen_mod*.js
 write_mod*.js
 assemble_*.js
 fix_*.js
+
+# Local SQL database files
+data/*.sqlite*
+*.sqlite*
+*.db
+

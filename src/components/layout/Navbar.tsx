@@ -101,15 +101,23 @@ export default function Navbar() {
                 <Award className="h-3.5 w-3.5 text-[#D0D0D0]" />
               </Link>
 
-              {/* User Profile Pill & Sign Out */}
-              <div className="flex items-center gap-1.5 pl-2 border-l border-[#303030]">
+              {/* User Profile Avatar (Picture only, no name text) & Sign Out */}
+              <div className="flex items-center gap-2 pl-2 border-l border-[#303030]">
                 <Link
                   href="/profile"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#181818] border border-[#303030] text-xs text-white hover:border-[#555555] transition"
-                  title="View Profile"
+                  className="w-8 h-8 rounded-full border border-[#303030] hover:border-white overflow-hidden bg-[#181818] flex items-center justify-center transition shadow-sm shrink-0"
+                  title="View Profile & Settings"
                 >
-                  <UserCheck className="h-3.5 w-3.5 text-[#75D7FF]" />
-                  <span className="max-w-[100px] truncate">{state.user.fullName || state.user.email}</span>
+                  {state.user.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={state.user.avatarUrl}
+                      alt="Student Avatar"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <UserCheck className="h-4 w-4 text-[#75D7FF]" />
+                  )}
                 </Link>
 
                 <button
@@ -180,10 +188,22 @@ export default function Navbar() {
             {state.user ? (
               <>
                 <div className="flex items-center justify-between text-xs text-[#D0D0D0] px-2 py-1">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-[#75D7FF]" />
-                    <span>{state.user.fullName || state.user.email}</span>
-                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-8 h-8 rounded-full border border-[#303030] overflow-hidden bg-[#181818] flex items-center justify-center shrink-0"
+                  >
+                    {state.user.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={state.user.avatarUrl}
+                        alt="Profile Avatar"
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <UserCheck className="h-4 w-4 text-[#75D7FF]" />
+                    )}
+                  </Link>
                   <div className="flex items-center gap-1 font-semibold text-white">
                     <Flame className="h-4 w-4" />
                     <span>{state.streakDays} Days</span>
