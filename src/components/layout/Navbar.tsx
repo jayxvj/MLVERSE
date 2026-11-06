@@ -48,16 +48,22 @@ export default function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
         {/* Brand Logo */}
+        {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#111111] text-white border border-[#444444] shadow-sm transition-all duration-300 group-hover:border-white">
-            <Sparkles className="h-5 w-5 text-[#F5F5F5]" />
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden">
+            <img
+              src="/logo/mlverse.png"
+              alt="MLVERSE Logo"
+              className="h-full w-full object-contain p-1"
+            />
           </div>
+
           <div className="flex flex-col">
             <span className="text-xl font-bold tracking-tight text-white">
               ML<span className="text-[#D0D0D0]">VERSE</span>
             </span>
             <span className="text-[10px] uppercase font-semibold tracking-wider text-[#999999] -mt-1">
-              Machine Learning Academy
+              MACHINE LEARNING LMS
             </span>
           </div>
         </Link>

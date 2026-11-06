@@ -10,8 +10,6 @@ import {
   LogIn,
   LogOut,
   Camera,
-  ShieldAlert,
-  Flame,
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -155,31 +153,6 @@ export default function ProfilePage() {
                 </button>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* 7-Day Auto-Reset & 15-Day Continuous Streak Policy Notice */}
-        <div className="rounded-xl border border-[#303030] bg-[#111111] p-6 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-mono text-[#D0D0D0]">
-            <ShieldAlert className="h-4 w-4 text-white" />
-            <span>ACCOUNT LIFECYCLE & RETENTION POLICY</span>
-          </div>
-
-          <div className="space-y-2 text-xs text-[#999999] leading-relaxed">
-            <p>
-              <strong className="text-white">Automatic 7-Day Inactivity Purge:</strong> If you forget your password or email, you do not need to worry. After 7 days of inactivity, your account is automatically purged from the SQL database and authentication is revoked.
-            </p>
-            <p>
-              <strong className="text-white">15-Day Continuous Streak Requirement:</strong> To maintain permanent database retention across months, at least a 15-day continuous streak is required each month. Without this required streak, inactivity past 7 days automatically wipes the record so you can cleanly re-register with fresh credentials.
-            </p>
-          </div>
-
-          <div className="pt-2 flex items-center gap-3 text-xs font-mono text-[#D0D0D0]">
-            <div className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#181818] border border-[#303030]">
-              <Flame className="w-3.5 h-3.5 text-white" />
-              <span>Current Streak: {state.streakDays} Days</span>
-            </div>
-            <span className="text-[#666666]">Target: 15 continuous days / month</span>
           </div>
         </div>
 

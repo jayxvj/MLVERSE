@@ -3,13 +3,25 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudent } from '@/lib/store';
-import { X, Mail, Lock, User, ArrowRight, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {
+  X,
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  Sparkles,
+  AlertCircle,
+  CheckCircle2,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthModalOpen, authModalMode, closeAuthModal, openAuthModal, signIn, signUp } = useStudent();
+  const { isAuthModalOpen, authModalMode, closeAuthModal, openAuthModal, signIn, signUp, signOut, state } = useStudent();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -30,7 +42,7 @@ export default function AuthModal() {
       } else {
         setSuccessMsg('Signed in successfully!');
       }
-    } else {
+    } else if (authModalMode === 'register') {
       if (password.length < 6) {
         setLoading(false);
         setErrorMsg('Password must be at least 6 characters.');
@@ -42,6 +54,35 @@ export default function AuthModal() {
         setErrorMsg(res.error || 'Failed to register account');
       } else {
         setSuccessMsg('Account registered successfully!');
+      }
+    } else if (authModalMode === 'forgot-password') {
+      if (deleteConfirm.trim() !== 'DELETE FOREVER') {
+        setLoading(false);
+        setErrorMsg('You must type exactly "DELETE FOREVER" to confirm deletion.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/delete-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, confirmation: deleteConfirm.trim() }),
+        });
+        const data = await res.json();
+        setLoading(false);
+
+        if (!res.ok) {
+          setErrorMsg(data.error || 'Failed to delete account.');
+        } else {
+          setSuccessMsg(data.message || 'Account deleted permanently from database.');
+          setDeleteConfirm('');
+          if (state.user?.email?.toLowerCase() === email.trim().toLowerCase()) {
+            await signOut();
+          }
+        }
+      } catch (err: any) {
+        setLoading(false);
+        setErrorMsg(err.message || 'Network error connecting to server.');
       }
     }
   };
@@ -78,23 +119,39 @@ export default function AuthModal() {
           {/* Header */}
           <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#181818] border border-[#303030] text-xs font-mono text-[#D0D0D0]">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
-              <span>{authModalMode === 'login' ? 'STUDENT SIGN IN' : 'NEW SCHOLAR ENROLLMENT'}</span>
+              {authModalMode === 'forgot-password' ? (
+                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              )}
+              <span>
+                {authModalMode === 'login'
+                  ? 'STUDENT SIGN IN'
+                  : authModalMode === 'register'
+                  ? 'NEW SCHOLAR ENROLLMENT'
+                  : 'ACCOUNT RESET'}
+              </span>
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight">
-              {authModalMode === 'login' ? 'Welcome Back' : 'Create Your Account'}
+              {authModalMode === 'login'
+                ? 'Welcome Back'
+                : authModalMode === 'register'
+                ? 'Create Your Account'
+                : 'Forgot Password?'}
             </h2>
             <p className="text-xs text-[#999999]">
               {authModalMode === 'login'
                 ? 'Sign in to access your streaks, achievements, and progress.'
-                : 'Join MLVERSE to track streaks, master modules, and earn badges.'}
+                : authModalMode === 'register'
+                ? 'Join MLVERSE to track streaks, master modules, and earn badges.'
+                : 'Enter your email and confirm below to permanently wipe your account and all database records so you can cleanly re-register.'}
             </p>
           </div>
 
           {/* Alert messages */}
           {errorMsg && (
             <div className="p-3 rounded-xl bg-[#181818] border border-[#444444] text-xs text-white flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -144,41 +201,90 @@ export default function AuthModal() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-mono text-[#D0D0D0] mb-1.5">
-                Password {authModalMode === 'register' && '(min. 6 characters)'}
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#303030] text-sm text-white placeholder-[#666666] focus:border-white focus:outline-none transition"
-                />
-                <Lock className="w-4 h-4 text-[#666666] absolute left-3.5 top-3" />
+            {authModalMode !== 'forgot-password' ? (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-mono text-[#D0D0D0]">
+                    Password {authModalMode === 'register' && '(min. 6 characters)'}
+                  </label>
+                  {authModalMode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                        setDeleteConfirm('');
+                        openAuthModal('forgot-password');
+                      }}
+                      className="text-xs text-[#999999] hover:text-white transition font-mono underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#303030] text-sm text-white placeholder-[#666666] focus:border-white focus:outline-none transition"
+                  />
+                  <Lock className="w-4 h-4 text-[#666666] absolute left-3.5 top-3" />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-mono text-red-400 mb-1.5">
+                  Type &quot;DELETE FOREVER&quot; to delete account & all records
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    placeholder="DELETE FOREVER"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0A0A0A] border border-red-500/40 text-sm text-white placeholder-[#555555] font-mono tracking-widest focus:border-red-500 focus:outline-none transition"
+                  />
+                  <Trash2 className="w-4 h-4 text-red-400 absolute left-3.5 top-3" />
+                </div>
+                <p className="text-[11px] text-[#888888] font-mono mt-1.5">
+                  This permanently wipes your user profile, streak, and credentials from the database so you can re-register.
+                </p>
+              </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-[#E5E5E5] transition flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
-            >
-              <span>
-                {loading
-                  ? 'Processing...'
-                  : authModalMode === 'login'
-                  ? 'Sign In to Portal'
-                  : 'Complete Enrollment'}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {authModalMode !== 'forgot-password' ? (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-[#E5E5E5] transition flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+              >
+                <span>
+                  {loading
+                    ? 'Processing...'
+                    : authModalMode === 'login'
+                    ? 'Sign In to Portal'
+                    : 'Complete Enrollment'}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || deleteConfirm.trim() !== 'DELETE FOREVER'}
+                className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-md disabled:opacity-40"
+              >
+                <span>{loading ? 'Deleting Account...' : 'Delete Account Permanently'}</span>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </form>
 
           {/* Mode Switcher */}
-          <div className="text-center pt-3 border-t border-[#303030] text-xs text-[#999999] space-y-2">
+          <div className="text-center pt-3 border-t border-[#303030] text-xs text-[#999999] space-y-1">
             {authModalMode === 'login' ? (
               <span>
                 Don&apos;t have an account?{' '}
@@ -194,7 +300,7 @@ export default function AuthModal() {
                   Register here
                 </button>
               </span>
-            ) : (
+            ) : authModalMode === 'register' ? (
               <span>
                 Already enrolled?{' '}
                 <button
@@ -209,11 +315,22 @@ export default function AuthModal() {
                   Sign in
                 </button>
               </span>
+            ) : (
+              <span>
+                Remembered your credentials?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                    openAuthModal('login');
+                  }}
+                  className="text-white font-semibold hover:underline"
+                >
+                  Back to Sign In
+                </button>
+              </span>
             )}
-
-            <p className="text-[11px] text-[#666666] font-mono leading-relaxed pt-1">
-              Policy: Inactive accounts without a 15-day streak auto-expire after 7 days for automatic reset & re-registration.
-            </p>
           </div>
         </motion.div>
       </div>

@@ -12,112 +12,112 @@ const ALL_BADGES = [
     title: 'ML Pioneer',
     category: 'Foundations',
     description: 'Mastered the core paradigm of Machine Learning and dataset taxonomy.',
-    icon: '⚡',
+    icon: '/trophy/MLPioneer.png',
   },
   {
     id: 'badge-learning-mechanic',
     title: 'Learning Mechanics Master',
     category: 'Foundations',
     description: 'Mastered all 14 lessons on dataset structures, data partitioning, model complexity, and the No Free Lunch Theorem.',
-    icon: '⚙️',
+    icon: '/trophy/LMechanics.png',
   },
   {
     id: 'badge-bias-variance-master',
     title: 'Bias-Variance Master',
     category: 'Foundations',
     description: 'Mastered prediction errors, MSE calculations, the Bias-Variance Trade-off, and model generalization.',
-    icon: '🎯',
+    icon: '/trophy/BiasVar.png',
   },
   {
     id: 'badge-data-detective',
     title: 'Data Detective',
     category: 'Foundations',
     description: 'Mastered all 21 lessons on Exploratory Data Analysis, descriptive statistics, outlier detection, and correlation.',
-    icon: '🔍',
+    icon: '/trophy/Data_Detective.png',
   },
   {
     id: 'badge-pipeline-architect',
     title: 'Pipeline Architect',
     category: 'Foundations',
     description: 'Mastered all 19 lessons on Data Preprocessing, feature scaling, categorical encoding, and leak-free Scikit-Learn pipelines.',
-    icon: '⚡',
+    icon: '/trophy/SKLearn.png',
   },
   {
     id: 'badge-visualization-master',
     title: 'Visualization Master',
     category: 'Foundations',
     description: 'Mastered all 19 lessons on Data Visualization, statistical charting architectures, Seaborn, Matplotlib, and ethical visualization design.',
-    icon: '📊',
+    icon: '/trophy/Data_Visualize.png',
   },
   {
     id: 'badge-workflow-architect',
     title: 'Workflow Architect',
     category: 'Foundations',
     description: 'Mastered all 14 lessons on the end-to-end ML workflow, cross-validation architectures, hyperparameter optimization, and leak-free production pipelines.',
-    icon: '🔄',
+    icon: '/trophy/Workflow.png',
   },
   {
     id: 'badge-taxonomist',
     title: 'Taxonomy Master',
     category: 'Foundations',
     description: 'Categorized supervised, unsupervised, and reinforcement learning tasks.',
-    icon: '🧭',
+    icon: '/trophy/Taxonomy.png',
   },
   {
     id: 'badge-matrix-sage',
     title: 'Vector Virtuoso',
     category: 'Mathematics',
     description: 'Mastered vector spaces, dot product projections, and matrix transformations.',
-    icon: '📐',
+    icon: '/trophy/MathMastery.png',
   },
   {
     id: 'badge-gradient-climber',
     title: 'Loss Conqueror',
     category: 'Optimization',
     description: 'Mastered calculus, error surfaces, and gradient descent convergence.',
-    icon: '🎯',
+    icon: '/trophy/Loss_Conqueror.png',
   },
   {
     id: 'badge-regression-hero',
     title: 'Regression Ace',
     category: 'Supervised',
     description: 'Mastered linear hypotheses, residuals, and logistic odds models.',
-    icon: '📈',
+    icon: '/trophy/Regreace.png',
   },
   {
     id: 'badge-forest-ranger',
     title: 'Ensemble Architect',
     category: 'Supervised',
     description: 'Mastered decision trees, pruning, and Random Forest bagging.',
-    icon: '🌲',
+    icon: '/trophy/Ensemble.png',
   },
   {
     id: 'badge-synapse-master',
     title: 'Neural Architect',
     category: 'Deep Learning',
     description: 'Mastered artificial neurons, activation functions, and multi-layer networks.',
-    icon: '🧠',
+    icon: '/trophy/NeuralNetwork.png',
   },
   {
     id: 'badge-algorithm-master',
     title: 'Algorithm Master',
     category: 'Supervised',
     description: 'Mastered all 33 lessons across classification, regression, and KNN in-depth.',
-    icon: '🧠',
+    icon: '/trophy/Algorithm.png',
   },
   {
     id: 'badge-backprop-prophet',
     title: 'Backprop Guru',
     category: 'Deep Learning',
     description: 'Mastered computational graphs, chain rule calculus, and Adam optimizers.',
-    icon: '🔄',
+    icon: '/trophy/Backpropagation.png',
   },
   {
     id: 'badge-project-engineer',
     title: 'Project Engineer',
     category: 'Projects',
     description: 'Completed all 5 end-to-end ML projects spanning regression, classification, clustering, and fraud detection.',
-    icon: '🚀',
+    icon: '/trophy/Master.png',
   },
 ];
 
@@ -185,16 +185,33 @@ export default function AchievementsPage() {
               return (
                 <div
                   key={badge.id}
-                  className={`rounded-xl p-5 border text-center transition-all flex flex-col justify-between ${
-                    isUnlocked
-                      ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-950/30 to-navy-950/90 shadow-glow'
-                      : 'border-white/5 bg-navy-950/50 opacity-60'
-                  }`}
+                  className={`rounded-xl p-5 border text-center transition-all flex flex-col justify-between ${isUnlocked
+                    ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-950/30 to-navy-950/90 shadow-glow'
+                    : 'border-white/5 bg-navy-950/50 opacity-60'
+                    }`}
                 >
+
                   <div>
-                    <div className="text-3xl mb-2">{badge.icon}</div>
-                    <div className="text-xs font-mono text-cyan-400 mb-1">{badge.category}</div>
-                    <h4 className="text-sm font-bold text-white mb-2">{badge.title}</h4>
+                    <div className="mb-2 flex justify-center items-center">
+                      {badge.icon.startsWith('/') ? (
+                        <img
+                          src={badge.icon}
+                          alt={badge.title}
+                          className="w-16 h-16 object-contain"
+                        />
+                      ) : (
+                        <span className="text-3xl">{badge.icon}</span>
+                      )}
+                    </div>
+
+                    <div className="text-xs font-mono text-cyan-400 mb-1">
+                      {badge.category}
+                    </div>
+
+                    <h4 className="text-sm font-bold text-white mb-2">
+                      {badge.title}
+                    </h4>
+
                     <p className="text-[11px] text-slate-300 leading-relaxed mb-4">
                       {badge.description}
                     </p>

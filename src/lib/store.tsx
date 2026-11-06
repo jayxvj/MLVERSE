@@ -9,8 +9,8 @@ interface StudentContextType {
   isLoaded: boolean;
   isSupabaseConnected: boolean;
   isAuthModalOpen: boolean;
-  authModalMode: 'login' | 'register';
-  openAuthModal: (mode?: 'login' | 'register') => void;
+  authModalMode: 'login' | 'register' | 'forgot-password';
+  openAuthModal: (mode?: 'login' | 'register' | 'forgot-password') => void;
   closeAuthModal: () => void;
   signIn: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password?: string, fullName?: string) => Promise<{ success: boolean; error?: string }>;
@@ -58,7 +58,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSupabaseConnected] = useState(isSupabaseConfigured);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot-password'>('login');
 
   // Load from local storage
   useEffect(() => {
@@ -84,7 +84,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
   }, [state, isLoaded]);
 
   // Auth modal handlers
-  const openAuthModal = (mode: 'login' | 'register' = 'login') => {
+  const openAuthModal = (mode: 'login' | 'register' | 'forgot-password' = 'login') => {
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
   };

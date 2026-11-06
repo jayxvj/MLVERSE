@@ -30,15 +30,6 @@ db.exec(`
   );
 `);
 
-// Safe migration for existing tables if columns don't exist
-try {
-  db.exec(`ALTER TABLE users ADD COLUMN streak_days INTEGER DEFAULT 1;`);
-} catch {}
-try {
-  db.exec(`ALTER TABLE users ADD COLUMN last_active_at TEXT DEFAULT '';`);
-  db.exec(`UPDATE users SET last_active_at = datetime('now') WHERE last_active_at = '' OR last_active_at IS NULL;`);
-} catch {}
-
 export interface DbUser {
   id: string;
   email: string;
@@ -52,23 +43,7 @@ export interface DbUser {
   updated_at: string;
 }
 
-/**
- * Purges inactive accounts:
- * Automatically wipes accounts after 7 days of inactivity (authentication revoked & permanently deleted)
- * unless a continuous streak of at least 15 days is maintained.
- */
-export function purgeInactiveAccounts(): number {
-  const stmt = db.prepare(`
-    DELETE FROM users 
-    WHERE (julianday('now') - julianday(last_active_at) >= 7)
-      AND (streak_days < 15)
-  `);
-  const result = stmt.run();
-  return result.changes;
-}
-
 export function findUserByEmail(email: string): DbUser | null {
-  purgeInactiveAccounts();
   const normalized = email.trim().toLowerCase();
   const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
   const user = stmt.get(normalized) as DbUser | undefined;
@@ -81,7 +56,6 @@ export function createUser(params: {
   fullName?: string;
   avatarUrl?: string;
 }): { id: string; email: string; fullName: string; avatarUrl: string; streakDays: number } {
-  purgeInactiveAccounts();
   const normalized = params.email.trim().toLowerCase();
   const salt = crypto.randomBytes(16).toString('hex');
   const passwordHash = crypto.scryptSync(params.password, salt, 64).toString('hex');
@@ -109,14 +83,11 @@ export function verifyUserPassword(
   email: string,
   plainPassword: string
 ): { success: boolean; error?: string; user?: { id: string; email: string; fullName: string; avatarUrl: string; streakDays: number } } {
-  // First, purge expired accounts
-  purgeInactiveAccounts();
-
   const user = findUserByEmail(email);
   if (!user) {
     return {
       success: false,
-      error: 'Account not found. If inactive for more than 7 days without a 15-day streak, the account was permanently removed per the 7-day retention policy. Please re-register.',
+      error: 'No account registered with this email address.',
     };
   }
 
@@ -141,6 +112,13 @@ export function verifyUserPassword(
       streakDays: user.streak_days || 1,
     },
   };
+}
+
+export function deleteUserPermanently(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const stmt = db.prepare('DELETE FROM users WHERE email = ?');
+  const result = stmt.run(normalized);
+  return result.changes > 0;
 }
 
 export function updateUserActivity(email: string, streakDays?: number): void {
