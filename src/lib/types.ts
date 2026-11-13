@@ -71,6 +71,7 @@ export interface Lesson {
   | 'eda-dashboard'
   | 'distribution-explorer'
   | 'outlier-detector'
+  | 'outlier-detection-masterclass'
   | 'missing-value-explorer'
   | 'correlation-explorer'
   | 'raw-data-cleaning'

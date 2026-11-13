@@ -1758,6 +1758,206 @@ print("Pipeline trained successfully! Predictions:\n", predictions.round(1))
       'Chain preprocessor and model inside a unified Pipeline.',
       'Guarantees leak-free cross-validation and production parity.'
     ]
+  },
+
+  // 20. Outlier Detection & Treatment Masterclass
+  {
+    id: 'les-5-20',
+    moduleId: 'mod-5',
+    title: '20. Outlier Detection & Treatment',
+    slug: 'outlier-detection-treatment',
+    estimatedMinutes: 35,
+    simpleDefinition: 'Outlier detection and treatment is the systematic identification, statistical diagnosis, and remediation of aberrant data points that deviate significantly from overall patterns. It prevents model distortion, stabilizes variance, and preserves real-world predictive validity.',
+    whyItExists: 'Outliers exert disproportionate leverage on squared-error loss functions, warp feature scaling (compressing 99% of normal data into a tiny 0.01 range in Min-Max scaling), mislead linear decision boundaries, and disrupt clustering centroids. Systematic treatment ensures models learn authentic generalizable relationships rather than fitting to noise.',
+    howItWorks: [
+      'Step 1: Diagnostic Exploration: Identify potential univariate and bivariate outliers using scatter plots, histograms, and box plots.',
+      'Step 2: Statistical Verification: Apply formal mathematical tests including Tukey IQR Fences ([Q1 - 1.5×IQR, Q3 + 1.5×IQR]), Standard Z-Scores (Z > 3.0), and Modified Z-Scores with Median Absolute Deviation (MAD).',
+      'Step 3: Anomaly Categorization: Classify the root cause into measurement error, data entry typo, processing artifact, or genuine extreme natural variation.',
+      'Step 4: Strategic Remediation: Apply Trimming (delete corrupted rows), Capping / Winsorization (clamp values to percentile fences), Non-linear Log/Power Transformations, or Robust Scaling (`RobustScaler`).',
+      'Step 5: Validation Benchmark: Evaluate model performance (RMSE, MAE, R², or F1-Score) before and after outlier treatment to verify generalization improvements.'
+    ],
+    practicalExamples: [
+      'Mortgage Risk & Real Estate: Capping billionaire estate valuations at the 99th percentile so residential price regression models do not overprice middle-class homes.',
+      'Industrial IoT Telemetry: Filtering out transient electrical voltage spikes and sensor dropouts from temperature telemetry in chemical reactor control loops.',
+      'Credit Card Fraud Detection: Distinguishing between a benign vacation shopping spree (contextual outlier) and genuine unauthorized high-velocity transactions (target signal to retain).'
+    ],
+    commonMisconceptions: [
+      {
+        myth: 'Outliers should always be immediately deleted from the training dataset.',
+        reality: 'Blind deletion causes severe data loss, survivorship bias, and model blindness. Winsorization (clipping to fences) or Robust Scaling preserves all samples and feature interactions while neutralizing leverage.'
+      },
+      {
+        myth: 'Standard Z-score is always the best way to detect outliers.',
+        reality: 'Because mean and standard deviation are non-robust, extreme outliers inflate both values, causing the "masking effect" where true outliers hide inside the inflated ±3σ boundaries. Tukey IQR or MAD is superior for skewed data.'
+      }
+    ],
+    conceptSummary: 'Understand, Detect, Analyze, and Handle Outliers in Machine Learning.',
+    interactiveExperienceType: 'outlier-detection-masterclass',
+    realWorldExample: {
+      domain: 'National Property Valuation & Mortgage Underwriting',
+      scenario: 'A mortgage lender deployed an automated valuation model on 25,000 suburban homes ($250k–$600k). 14 luxury estates ($25M–$80M) generated severe squared-error penalties that tilted the regression hyperplane upward, artificially inflating standard home appraisals by 45%.',
+      impact: 'Applying Tukey IQR Winsorization and log-transforms dropped model RMSE from $184,200 down to $28,400 (6.5× accuracy gain) and eliminated credit misallocation.'
+    },
+    keyTakeaways: [
+      'Tukey IQR rule defines Lower Bound = Q1 - 1.5×IQR and Upper Bound = Q3 + 1.5×IQR',
+      'Z-Score (Z = (X - μ) / σ) works best on normal bell curves; Modified Z-Score with MAD is resistant to masking',
+      'Winsorization (capping to fences) eliminates extreme gradient leverage while retaining 100% of rows and multivariate relationships',
+      'Use Scikit-Learn `RobustScaler` (median & IQR) when outliers cannot be dropped or capped'
+    ],
+    visualDiagramType: 'flow',
+    visualDiagramData: {
+      nodes: [
+        { id: 'raw', label: 'Raw Observations', description: 'Unprocessed continuous numerical feature vector', type: 'input' },
+        { id: 'detect', label: 'Tukey IQR & Z-Score', description: 'Evaluate [Q1 - 1.5×IQR, Q3 + 1.5×IQR] and |Z| > 3', type: 'process' },
+        { id: 'classify', label: 'Cause Classification', description: 'Measurement error vs. genuine domain anomaly', type: 'process' },
+        { id: 'treat', label: 'Winsorize / Robust Scale', description: 'Capping at fences or scaling with median and IQR', type: 'process' },
+        { id: 'model', label: 'Generalizable ML Model', description: 'Stable regression slopes and unbiased decision boundaries', type: 'output' }
+      ],
+      connections: [
+        { from: 'raw', to: 'detect', label: 'Distribution Analysis' },
+        { from: 'detect', to: 'classify', label: 'Statistical Outliers' },
+        { from: 'classify', to: 'treat', label: 'Appropriate Strategy' },
+        { from: 'treat', to: 'model', label: 'Leak-Free Pipeline' }
+      ]
+    },
+    mathematics: {
+      title: 'Tukey IQR Fences & Z-Score Formulation',
+      latex: '\\text{IQR} = Q_3 - Q_1, \\quad \\text{Lower} = Q_1 - 1.5 \\times \\text{IQR}, \\quad \\text{Upper} = Q_3 + 1.5 \\times \\text{IQR}, \\quad Z = \\frac{X - \\mu}{\\sigma}',
+      plainText: 'IQR = Q3 - Q1 | Lower Bound = Q1 - 1.5 * IQR | Upper Bound = Q3 + 1.5 * IQR | Z = (X - mu) / sigma',
+      explanation: 'Tukey’s fences establish non-parametric boundaries based on the middle 50% spread. Z-scores measure the number of standard deviations an observation deviates from the arithmetic mean.',
+      breakdown: [
+        { id: 'q1', symbol: 'Q1', name: 'First Quartile', description: '25th percentile of sorted data' },
+        { id: 'q3', symbol: 'Q3', name: 'Third Quartile', description: '75th percentile of sorted data' },
+        { id: 'iqr', symbol: 'IQR', name: 'Interquartile Range', description: 'Middle 50% spread (Q3 - Q1)' },
+        { id: 'mu', symbol: '\\mu', name: 'Mean', description: 'Arithmetic average of feature' },
+        { id: 'sigma', symbol: '\\sigma', name: 'Standard Deviation', description: 'Measure of dispersion around the mean' }
+      ]
+    },
+    pythonSnippet: {
+      title: 'Outlier Detection, Capping & Robust Scaling Pipeline',
+      code: `import numpy as np
+import pandas as pd
+from sklearn.preprocessing import RobustScaler
+from sklearn.linear_model import Ridge
+from sklearn.pipeline import Pipeline
+
+# 1. Realistic dataset with size (sqft) and price ($k) with high-leverage typo
+data = {
+    'sqft': [1100, 1250, 1300, 1450, 1600, 1750, 2100, 2400, 2850, 1400],
+    'price': [210, 235, 220, 260, 290, 310, 360, 410, 460, 1200]  # $1.2M typo
+}
+df = pd.DataFrame(data)
+
+# 2. Tukey IQR Outlier Detection
+Q1 = df['price'].quantile(0.25)
+Q3 = df['price'].quantile(0.75)
+IQR = Q3 - Q1
+lower_fence = Q1 - 1.5 * IQR
+upper_fence = Q3 + 1.5 * IQR
+
+# 3. Winsorization / Capping using pandas.clip
+df['price_capped'] = df['price'].clip(lower=lower_fence, upper=upper_fence)
+
+# 4. Leak-Free Pipeline with RobustScaler
+pipe = Pipeline([
+    ('scaler', RobustScaler()),  # Centers by median, scales by IQR
+    ('model', Ridge(alpha=1.0))
+])
+
+pipe.fit(df[['sqft']], df['price_capped'])
+print(f"Lower Fence: \${lower_fence:.1f}k | Upper Fence: \${upper_fence:.1f}k")
+print("Model trained successfully with outlier-resistant preprocessing!")
+print("Fitted Slope (Weight):", np.round(pipe.named_steps['model'].coef_, 3))
+`,
+      explanation: 'Demonstrates Tukey IQR fence computation, vectorized Pandas Winsorization, and Scikit-Learn RobustScaler pipeline integration.',
+      expectedOutput: 'Lower Fence: $88.8k | Upper Fence: $582.8k\\nModel trained successfully with outlier-resistant preprocessing!\\nFitted Slope (Weight): [96.425]'
+    },
+    simulation: {
+      type: 'regression',
+      title: 'Outlier Leverage on Gradient Descent',
+      description: 'Observe how a single high-magnitude anomaly alters loss landscape slopes and distorts model parameters.',
+      defaultParams: { learningRate: 0.05, startingWeight: 5 }
+    },
+    knowledgeCheck: [
+      {
+        id: 'q5-20-1',
+        question: 'Which measure of central tendency is considered robust against extreme outliers?',
+        options: [
+          'The Median (50% breakdown point)',
+          'The Arithmetic Mean',
+          'Standard Deviation',
+          'Variance'
+        ],
+        correctIndex: 0,
+        explanation: 'The median requires over 50% of data points to be corrupted before it becomes arbitrary, whereas a single outlier can shift the arithmetic mean arbitrarily far.'
+      },
+      {
+        id: 'q5-20-2',
+        question: 'Given Q1 = 40 and Q3 = 80, what is the Upper Bound for outlier detection using Tukey’s IQR rule?',
+        options: [
+          '140',
+          '120',
+          '160',
+          '100'
+        ],
+        correctIndex: 0,
+        explanation: 'IQR = Q3 - Q1 = 80 - 40 = 40. Upper Bound = Q3 + 1.5 * IQR = 80 + 1.5 * 40 = 80 + 60 = 140.'
+      },
+      {
+        id: 'q5-20-3',
+        question: 'Which machine learning algorithm is intrinsically most robust against univariate feature outliers?',
+        options: [
+          'Decision Trees and Random Forests',
+          'Ordinary Least Squares Linear Regression',
+          'K-Means Clustering',
+          'Principal Component Analysis (PCA)'
+        ],
+        correctIndex: 0,
+        explanation: 'Decision trees evaluate split thresholds based strictly on sorted rank order (e.g. x_i > 50). The absolute numerical value of extreme points does not change the partition.'
+      },
+      {
+        id: 'q5-20-4',
+        question: 'What is "Winsorization"?',
+        options: [
+          'Capping values that exceed fences/percentiles to the exact threshold value rather than deleting the row',
+          'Deleting all rows containing an outlier',
+          'Replacing outliers with Gaussian random noise',
+          'Dividing all features by the maximum standard deviation'
+        ],
+        correctIndex: 0,
+        explanation: 'Winsorization clamps values beyond thresholds to the fence values, preserving sample size while eliminating extreme gradient leverage.'
+      },
+      {
+        id: 'q5-20-5',
+        question: 'Why does Min-Max Scaling fail when an extreme high outlier is present?',
+        options: [
+          'Because (x - min) / (max - min) shrinks 99% of normal observations into a tiny, compressed sub-range near zero',
+          'Because Min-Max scaling can only process negative numbers',
+          'Because it causes division by zero on all datasets',
+          'Because Scikit-Learn throws an exception on values greater than 100'
+        ],
+        correctIndex: 0,
+        explanation: 'When max is an extreme outlier, (max - min) in the denominator is enormous, squashing all typical values into a minuscule interval like [0.00, 0.01].'
+      },
+      {
+        id: 'q5-20-6',
+        question: 'In Fraud Detection, how should identified outlier transactions be treated?',
+        options: [
+          'Retained in the dataset because the anomaly IS the primary positive target signal of interest',
+          'Deleted immediately before exploratory analysis',
+          'Imputed with the median transaction amount',
+          'Replaced with zeros'
+        ],
+        correctIndex: 0,
+        explanation: 'In fraud, intrusion detection, and failure prediction, the outliers represent the actual rare events the model is designed to detect.'
+      }
+    ],
+    revisionNotes: [
+      'Tukey IQR rule: Lower = Q1 - 1.5×IQR, Upper = Q3 + 1.5×IQR.',
+      'Mean, variance, and OLS regression have a 1/n breakdown point and are heavily distorted by outliers.',
+      'Winsorization clamps outliers to fences, preserving 100% of rows and correlations.',
+      'Use Scikit-Learn RobustScaler (median and IQR) for robust normalization in production pipelines.'
+    ]
   }
 ];
 

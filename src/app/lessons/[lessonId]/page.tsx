@@ -35,6 +35,7 @@ import IrreducibleErrorSimulator from '@/components/interactive/special/Irreduci
 import EdaDashboard from '@/components/interactive/special/EdaDashboard';
 import DistributionExplorer from '@/components/interactive/special/DistributionExplorer';
 import OutlierDetector from '@/components/interactive/special/OutlierDetector';
+import OutlierMasterclassLab from '@/components/interactive/special/OutlierMasterclassLab';
 import MissingValueExplorer from '@/components/interactive/special/MissingValueExplorer';
 import CorrelationExplorer from '@/components/interactive/special/CorrelationExplorer';
 import RawDataCleaning from '@/components/interactive/special/RawDataCleaning';
@@ -259,6 +260,9 @@ export default function InteractiveLessonPage() {
             )}
             {lesson.interactiveExperienceType === 'outlier-detector' && (
               <OutlierDetector />
+            )}
+            {lesson.interactiveExperienceType === 'outlier-detection-masterclass' && (
+              <OutlierMasterclassLab />
             )}
             {lesson.interactiveExperienceType === 'missing-value-explorer' && (
               <MissingValueExplorer />
