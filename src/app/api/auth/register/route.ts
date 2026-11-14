@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findUserByEmail, createUser } from '@/lib/db';
+import { findUserByEmail, createUser, validateEmailFormat } from '@/lib/db';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -7,18 +7,42 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, fullName } = await request.json();
+    const body = await request.json();
+    const { email, password, fullName } = body || {};
 
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return NextResponse.json({ error: 'A valid email address is required.' }, { status: 400 });
+    // 1. Email validation (RFC compliance, domain typo check, gmail rules)
+    const emailValidation = validateEmailFormat(email);
+    if (!emailValidation.valid) {
+      return NextResponse.json({ error: emailValidation.error }, { status: 400 });
+    }
+    const normalizedEmail = emailValidation.normalized;
+
+    // 2. Password validation
+    if (!password || typeof password !== 'string' || password.trim().length < 6) {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters long and cannot be only whitespace.' },
+        { status: 400 }
+      );
+    }
+    if (password.length > 72) {
+      return NextResponse.json({ error: 'Password cannot exceed 72 characters.' }, { status: 400 });
     }
 
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 });
+    // 3. Full Name validation (if provided)
+    let cleanFullName = '';
+    if (fullName && typeof fullName === 'string') {
+      const trimmedName = fullName.trim();
+      if (trimmedName.length > 0 && trimmedName.length < 2) {
+        return NextResponse.json(
+          { error: 'Full name must be at least 2 characters long if provided.' },
+          { status: 400 }
+        );
+      }
+      cleanFullName = trimmedName.slice(0, 60);
     }
 
-    // 1. Cross-verify with SQL database
-    const existing = findUserByEmail(email);
+    // 4. Cross-verify with SQL database
+    const existing = findUserByEmail(normalizedEmail);
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this email address already exists. Please sign in instead.' },
@@ -26,18 +50,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Insert into SQL database
+    // 5. Insert into SQL database with fresh individual LMS record
     const newUser = createUser({
-      email,
+      email: normalizedEmail,
       password,
-      fullName: fullName || email.split('@')[0],
+      fullName: cleanFullName || normalizedEmail.split('@')[0],
     });
 
-    // 3. Optional Supabase Auth sync if configured
+    // 6. Optional Supabase Auth sync if configured
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: { data: { full_name: newUser.fullName } },
         });
@@ -55,4 +79,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message || 'Server error creating account' }, { status: 500 });
   }
 }
-

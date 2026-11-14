@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyUserPassword } from '@/lib/db';
+import { verifyUserPassword, validateEmailFormat } from '@/lib/db';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -7,18 +7,21 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
+    const { email, password } = body || {};
 
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Email address is required.' }, { status: 400 });
+    const emailValidation = validateEmailFormat(email);
+    if (!emailValidation.valid) {
+      return NextResponse.json({ error: emailValidation.error }, { status: 400 });
     }
+    const normalizedEmail = emailValidation.normalized;
 
     if (!password || typeof password !== 'string') {
       return NextResponse.json({ error: 'Password is required.' }, { status: 400 });
     }
 
     // Cross-verify credentials strictly against SQL database
-    const verifyResult = verifyUserPassword(email, password);
+    const verifyResult = verifyUserPassword(normalizedEmail, password);
     if (!verifyResult.success || !verifyResult.user) {
       return NextResponse.json(
         { error: verifyResult.error || 'Invalid email or password.' },
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
     // Optional Supabase sync
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.auth.signInWithPassword({ email, password });
+        await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       } catch (e) {
         console.warn('[SUPABASE SYNC WARNING]', e);
       }
@@ -44,4 +47,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message || 'Server error logging in' }, { status: 500 });
   }
 }
-

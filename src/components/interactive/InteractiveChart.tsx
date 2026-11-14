@@ -87,11 +87,11 @@ export default function InteractiveChart({
               ))}
             </LineChart>
           ) : type === 'scatter' ? (
-            <ScatterChart>
+            <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey={xKey} stroke="#64748b" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#64748b" tick={{ fontSize: 11 }} />
-              <Tooltip content={customTooltip} />
+              <XAxis dataKey={xKey} type="number" name={xKey} stroke="#64748b" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+              <YAxis dataKey={series[0]?.key || 'y'} type="number" name={series[0]?.name || 'y'} stroke="#64748b" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+              <Tooltip content={customTooltip} cursor={{ strokeDasharray: '3 3' }} />
               <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
               {series.map((s, idx) => (
                 <Scatter

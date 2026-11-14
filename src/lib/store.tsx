@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { UserProgressState, StudentProfile } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -22,10 +22,10 @@ interface StudentContextType {
   recordQuizScore: (quizId: string, score: number, total: number, badgeId?: string) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   setCurrentLesson: (moduleId: string, lessonId: string) => void;
-  resetProgress: () => void;
 }
 
-const STORAGE_KEY = 'mlverse_student_progress_v1';
+const GLOBAL_SESSION_KEY = 'mlverse_active_session_user';
+const PROGRESS_KEY_PREFIX = 'mlverse_user_progress_';
 
 const INITIAL_EMPTY_STATE: UserProgressState = {
   completedLessons: [],
@@ -60,24 +60,102 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot-password'>('login');
 
-  // Load from local storage
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync state to backend database (debounced)
+  const syncProgressToBackend = (email: string, progressData: Partial<UserProgressState>) => {
+    if (!email) return;
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
+    syncTimeoutRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            progress: {
+              completedLessons: progressData.completedLessons,
+              completedModules: progressData.completedModules,
+              bookmarkedLessons: progressData.bookmarkedLessons,
+              notes: progressData.notes,
+              quizScores: progressData.quizScores,
+              earnedBadges: progressData.earnedBadges,
+              streakDays: progressData.streakDays,
+            },
+          }),
+        });
+      } catch (err) {
+        console.warn('[PROGRESS SYNC WARNING]', err);
+      }
+    }, 400);
+  };
+
+  // 1. Initial Load: Restore user session and their individual progress
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setState(JSON.parse(saved));
+      const activeUserJson = localStorage.getItem(GLOBAL_SESSION_KEY);
+      if (activeUserJson) {
+        const activeUser: StudentProfile = JSON.parse(activeUserJson);
+        const userProgressKey = PROGRESS_KEY_PREFIX + (activeUser.id || activeUser.email);
+        const cachedProgressJson = localStorage.getItem(userProgressKey);
+
+        let initialLoadedProgress = INITIAL_EMPTY_STATE;
+        if (cachedProgressJson) {
+          try {
+            initialLoadedProgress = { ...INITIAL_EMPTY_STATE, ...JSON.parse(cachedProgressJson) };
+          } catch {}
+        }
+
+        setState({
+          ...initialLoadedProgress,
+          user: activeUser,
+        });
+
+        // Background fetch latest progress from SQLite DB for this user
+        fetch(`/api/progress?email=${encodeURIComponent(activeUser.email)}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.progress) {
+              setState((prev) => {
+                if (prev.user?.email !== activeUser.email) return prev;
+                const merged: UserProgressState = {
+                  ...prev,
+                  completedLessons: Array.from(new Set([...prev.completedLessons, ...(data.progress.completedLessons || [])])),
+                  completedModules: Array.from(new Set([...prev.completedModules, ...(data.progress.completedModules || [])])),
+                  bookmarkedLessons: Array.from(new Set([...prev.bookmarkedLessons, ...(data.progress.bookmarkedLessons || [])])),
+                  notes: { ...data.progress.notes, ...prev.notes },
+                  quizScores: { ...data.progress.quizScores, ...prev.quizScores },
+                  earnedBadges: Array.from(new Set([...prev.earnedBadges, ...(data.progress.earnedBadges || [])])),
+                  streakDays: Math.max(prev.streakDays, data.progress.streakDays || 1),
+                };
+                try {
+                  localStorage.setItem(userProgressKey, JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
+            }
+          })
+          .catch((e) => console.warn('[PROGRESS INITIAL SYNC WARNING]', e));
       }
     } catch (e) {
-      console.warn('Failed to parse local student progress:', e);
+      console.warn('Failed to parse active user session:', e);
     }
     setIsLoaded(true);
   }, []);
 
-  // Save to local storage on changes
+  // 2. Save individual user progress whenever state changes
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (state.user) {
+        const userProgressKey = PROGRESS_KEY_PREFIX + (state.user.id || state.user.email);
+        localStorage.setItem(GLOBAL_SESSION_KEY, JSON.stringify(state.user));
+        localStorage.setItem(userProgressKey, JSON.stringify(state));
+        syncProgressToBackend(state.user.email, state);
+      } else {
+        localStorage.removeItem(GLOBAL_SESSION_KEY);
+      }
     } catch (e) {
       console.error('Failed to write student progress:', e);
     }
@@ -93,7 +171,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     setIsAuthModalOpen(false);
   };
 
-  // Sign In with real SQL validation
+  // Sign In with individual user progress loading
   const signIn = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
     if (!email || !password) {
       return { success: false, error: 'Email and password are required.' };
@@ -116,7 +194,43 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         fullName: data.user.fullName,
         avatarUrl: data.user.avatarUrl || '',
       };
-      setState((prev) => ({ ...prev, user: profile }));
+
+      // Load user's individual progress from SQLite
+      let userDbProgress = null;
+      try {
+        const progRes = await fetch(`/api/progress?email=${encodeURIComponent(profile.email)}`);
+        if (progRes.ok) {
+          const progData = await progRes.json();
+          userDbProgress = progData.progress;
+        }
+      } catch (err) {
+        console.warn('[DB PROGRESS LOAD WARNING]', err);
+      }
+
+      // Check local cache for this specific user
+      const userProgressKey = PROGRESS_KEY_PREFIX + profile.id;
+      let userLocalProgress: any = null;
+      try {
+        const cached = localStorage.getItem(userProgressKey);
+        if (cached) userLocalProgress = JSON.parse(cached);
+      } catch {}
+
+      const mergedProgress: UserProgressState = {
+        ...INITIAL_EMPTY_STATE,
+        user: profile,
+        completedLessons: userDbProgress?.completedLessons || userLocalProgress?.completedLessons || [],
+        completedModules: userDbProgress?.completedModules || userLocalProgress?.completedModules || [],
+        bookmarkedLessons: userDbProgress?.bookmarkedLessons || userLocalProgress?.bookmarkedLessons || [],
+        notes: userDbProgress?.notes || userLocalProgress?.notes || {},
+        quizScores: userDbProgress?.quizScores || userLocalProgress?.quizScores || {},
+        earnedBadges: userDbProgress?.earnedBadges || userLocalProgress?.earnedBadges || [],
+        streakDays: userDbProgress?.streakDays || data.user.streakDays || 1,
+      };
+
+      setState(mergedProgress);
+      localStorage.setItem(GLOBAL_SESSION_KEY, JSON.stringify(profile));
+      localStorage.setItem(userProgressKey, JSON.stringify(mergedProgress));
+
       closeAuthModal();
       return { success: true };
     } catch (err: any) {
@@ -124,7 +238,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign Up with real SQL persistence
+  // Sign Up with individual fresh progress creation
   const signUp = async (email: string, password?: string, fullName?: string): Promise<{ success: boolean; error?: string }> => {
     if (!email || !password) {
       return { success: false, error: 'Email and password are required.' };
@@ -147,7 +261,25 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         fullName: data.user.fullName,
         avatarUrl: data.user.avatarUrl || '',
       };
-      setState((prev) => ({ ...prev, user: profile }));
+
+      // Completely fresh, individual progress for this newly registered user
+      const freshProgress: UserProgressState = {
+        ...INITIAL_EMPTY_STATE,
+        user: profile,
+        completedLessons: [],
+        completedModules: [],
+        bookmarkedLessons: [],
+        notes: {},
+        quizScores: {},
+        earnedBadges: [],
+        streakDays: 1,
+      };
+
+      const userProgressKey = PROGRESS_KEY_PREFIX + profile.id;
+      localStorage.setItem(GLOBAL_SESSION_KEY, JSON.stringify(profile));
+      localStorage.setItem(userProgressKey, JSON.stringify(freshProgress));
+
+      setState(freshProgress);
       closeAuthModal();
       return { success: true };
     } catch (err: any) {
@@ -155,12 +287,15 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign Out
+  // Sign Out: completely isolate user data, reset active screen to blank state
   const signOut = async () => {
     if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch {}
     }
-    setState((prev) => ({ ...prev, user: null }));
+    localStorage.removeItem(GLOBAL_SESSION_KEY);
+    setState(INITIAL_EMPTY_STATE);
   };
 
   // Update Profile Image & Autosave to SQL and Storage
@@ -185,58 +320,78 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (isSupabaseConfigured && supabase && state.user?.id) {
-      await supabase.auth.updateUser({
-        data: { avatar_url: avatarUrl }
-      });
+      try {
+        await supabase.auth.updateUser({
+          data: { avatar_url: avatarUrl },
+        });
+      } catch {}
     }
   };
 
+  // Mark lesson as complete: NO ROLLBACK. Once marked complete, it stays completed!
   const toggleCompleteLesson = (lessonId: string, moduleId?: string) => {
     setState((prev) => {
-      const isCompleted = prev.completedLessons.includes(lessonId);
-      const newCompleted = isCompleted
-        ? prev.completedLessons.filter((id) => id !== lessonId)
-        : [...prev.completedLessons, lessonId];
+      // If already marked as complete, DO NOT roll back or toggle off
+      if (prev.completedLessons.includes(lessonId)) {
+        return prev;
+      }
 
+      const newCompleted = [...prev.completedLessons, lessonId];
       const newModules = [...prev.completedModules];
-      if (moduleId && !isCompleted && !newModules.includes(moduleId)) {
+      if (moduleId && !newModules.includes(moduleId)) {
         newModules.push(moduleId);
       }
 
       const todayName = new Date().toLocaleDateString('en-US', { weekday: 'short' });
       const updatedWeekly = prev.weeklyActivity.map((w) =>
-        w.day === todayName ? { ...w, lessonsCount: w.lessonsCount + (isCompleted ? -1 : 1), minutes: w.minutes + (isCompleted ? -10 : 15) } : w
+        w.day === todayName ? { ...w, lessonsCount: w.lessonsCount + 1, minutes: w.minutes + 15 } : w
       );
 
-      return {
+      const nextState: UserProgressState = {
         ...prev,
         completedLessons: newCompleted,
         completedModules: newModules,
         weeklyActivity: updatedWeekly,
       };
+
+      if (prev.user?.email) {
+        syncProgressToBackend(prev.user.email, nextState);
+      }
+
+      return nextState;
     });
   };
 
   const toggleBookmark = (lessonId: string) => {
     setState((prev) => {
       const exists = prev.bookmarkedLessons.includes(lessonId);
-      return {
+      const nextState: UserProgressState = {
         ...prev,
         bookmarkedLessons: exists
           ? prev.bookmarkedLessons.filter((id) => id !== lessonId)
           : [...prev.bookmarkedLessons, lessonId],
       };
+      if (prev.user?.email) {
+        syncProgressToBackend(prev.user.email, nextState);
+      }
+      return nextState;
     });
   };
 
   const saveNote = (lessonId: string, note: string) => {
-    setState((prev) => ({
-      ...prev,
-      notes: {
-        ...prev.notes,
-        [lessonId]: note,
-      },
-    }));
+    setState((prev) => {
+      const nextState: UserProgressState = {
+        ...prev,
+        notes: {
+          ...prev.notes,
+          [lessonId]: note,
+        },
+      };
+      if (prev.user?.email) {
+        syncProgressToBackend(prev.user.email, nextState);
+      }
+      return nextState;
+    });
   };
 
   const recordQuizScore = (quizId: string, score: number, total: number, badgeId?: string) => {
@@ -251,11 +406,17 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         newBadges.push(badgeId);
       }
 
-      return {
+      const nextState: UserProgressState = {
         ...prev,
         quizScores: updatedScores,
         earnedBadges: newBadges,
       };
+
+      if (prev.user?.email) {
+        syncProgressToBackend(prev.user.email, nextState);
+      }
+
+      return nextState;
     });
   };
 
@@ -269,11 +430,6 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
       currentModuleId: moduleId,
       currentLessonId: lessonId,
     }));
-  };
-
-  const resetProgress = () => {
-    setState(INITIAL_EMPTY_STATE);
-    localStorage.removeItem(STORAGE_KEY);
   };
 
   return (
@@ -296,7 +452,6 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         recordQuizScore,
         setTheme,
         setCurrentLesson,
-        resetProgress,
       }}
     >
       {children}

@@ -9,12 +9,76 @@ import {
   Lock,
   User,
   ArrowRight,
-  Sparkles,
   AlertCircle,
   CheckCircle2,
   Trash2,
-  AlertTriangle,
 } from 'lucide-react';
+
+function validateClientInput(email: string, password: string, fullName: string, mode: string): string | null {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return 'Email address is required.';
+
+  // RFC basic check
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  if (!emailRegex.test(normalized)) {
+    return 'Please enter a valid, complete email address (e.g. name@domain.com).';
+  }
+
+  const parts = normalized.split('@');
+  if (parts.length !== 2) return 'Invalid email address structure.';
+
+  const [username, domain] = parts;
+
+  // Typo detector
+  const typoMap: Record<string, string> = {
+    'gmial.com': 'gmail.com',
+    'gamil.com': 'gmail.com',
+    'gmal.com': 'gmail.com',
+    'gmaill.com': 'gmail.com',
+    'yaho.com': 'yahoo.com',
+    'hotmial.com': 'hotmail.com',
+    'outlok.com': 'outlook.com',
+  };
+
+  if (typoMap[domain]) {
+    return `Did you mean @${typoMap[domain]}? Please check your email spelling.`;
+  }
+
+  if (domain === 'gmail.com') {
+    if (username.length < 6 || username.length > 30) {
+      return 'Gmail username must be between 6 and 30 characters long.';
+    }
+    if (!/^[a-z0-9.]+$/.test(username)) {
+      return 'Gmail usernames may only contain letters (a-z), numbers (0-9), and periods (.).';
+    }
+    if (username.startsWith('.') || username.endsWith('.')) {
+      return 'Gmail username cannot start or end with a period.';
+    }
+    if (username.includes('..')) {
+      return 'Gmail username cannot contain consecutive periods.';
+    }
+  }
+
+  if (mode !== 'forgot-password') {
+    if (!password || password.trim().length === 0) {
+      return 'Password is required.';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long.';
+    }
+    if (password.length > 72) {
+      return 'Password cannot exceed 72 characters.';
+    }
+  }
+
+  if (mode === 'register') {
+    if (!fullName || fullName.trim().length < 2) {
+      return 'Full name must be at least 2 characters long.';
+    }
+  }
+
+  return null;
+}
 
 export default function AuthModal() {
   const { isAuthModalOpen, authModalMode, closeAuthModal, openAuthModal, signIn, signUp, signOut, state } = useStudent();
@@ -32,10 +96,17 @@ export default function AuthModal() {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    const validationError = validateClientInput(email, password, fullName, authModalMode);
+    if (validationError) {
+      setErrorMsg(validationError);
+      return;
+    }
+
     setLoading(true);
 
     if (authModalMode === 'login') {
-      const res = await signIn(email, password);
+      const res = await signIn(email.trim().toLowerCase(), password);
       setLoading(false);
       if (!res.success) {
         setErrorMsg(res.error || 'Failed to authenticate');
@@ -43,17 +114,12 @@ export default function AuthModal() {
         setSuccessMsg('Signed in successfully!');
       }
     } else if (authModalMode === 'register') {
-      if (password.length < 6) {
-        setLoading(false);
-        setErrorMsg('Password must be at least 6 characters.');
-        return;
-      }
-      const res = await signUp(email, password, fullName);
+      const res = await signUp(email.trim().toLowerCase(), password, fullName.trim());
       setLoading(false);
       if (!res.success) {
         setErrorMsg(res.error || 'Failed to register account');
       } else {
-        setSuccessMsg('Account registered successfully!');
+        setSuccessMsg('Account registered successfully! Welcome to MLVERSE.');
       }
     } else if (authModalMode === 'forgot-password') {
       if (deleteConfirm.trim() !== 'DELETE FOREVER') {
@@ -66,7 +132,7 @@ export default function AuthModal() {
         const res = await fetch('/api/auth/delete-account', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, confirmation: deleteConfirm.trim() }),
+          body: JSON.stringify({ email: email.trim().toLowerCase(), confirmation: deleteConfirm.trim() }),
         });
         const data = await res.json();
         setLoading(false);
@@ -118,47 +184,33 @@ export default function AuthModal() {
 
           {/* Header */}
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#181818] border border-[#303030] text-xs font-mono text-[#D0D0D0]">
-              {authModalMode === 'forgot-password' ? (
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-white" />
-              )}
-              <span>
-                {authModalMode === 'login'
-                  ? 'STUDENT SIGN IN'
-                  : authModalMode === 'register'
-                  ? 'NEW SCHOLAR ENROLLMENT'
-                  : 'ACCOUNT RESET'}
-              </span>
-            </div>
-            <h2 className="text-2xl font-black text-white tracking-tight">
+            <h2 className="text-2xl font-black tracking-tight text-white">
               {authModalMode === 'login'
                 ? 'Welcome Back'
                 : authModalMode === 'register'
-                ? 'Create Your Account'
-                : 'Forgot Password?'}
+                ? 'Join MLVERSE'
+                : 'Reset Credentials'}
             </h2>
             <p className="text-xs text-[#999999]">
               {authModalMode === 'login'
-                ? 'Sign in to access your streaks, achievements, and progress.'
+                ? 'Sign in to access your individual streaks, achievements, and progress.'
                 : authModalMode === 'register'
-                ? 'Join MLVERSE to track streaks, master modules, and earn badges.'
-                : 'Enter your email and confirm below to permanently wipe your account and all database records so you can cleanly re-register.'}
+                ? 'Enroll in MLVERSE with your verified email to track individual progress and badges.'
+                : 'Delete account permanently and reset all stored database records.'}
             </p>
           </div>
 
           {/* Alert messages */}
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-[#181818] border border-[#444444] text-xs text-white flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-[#181818] border border-red-500/40 text-xs text-red-300 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3 rounded-xl bg-[#181818] border border-[#444444] text-xs text-[#75D7FF] flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-[#75D7FF]" />
+            <div className="p-3 rounded-xl bg-[#181818] border border-emerald-500/40 text-xs text-emerald-300 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -186,7 +238,7 @@ export default function AuthModal() {
 
             <div>
               <label className="block text-xs font-mono text-[#D0D0D0] mb-1.5">
-                Email Address
+                Email Address (Gmail / Academic / Work)
               </label>
               <div className="relative">
                 <input
@@ -194,7 +246,7 @@ export default function AuthModal() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="scholar@mlverse.ai"
+                  placeholder="scholar@gmail.com"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#303030] text-sm text-white placeholder-[#666666] focus:border-white focus:outline-none transition"
                 />
                 <Mail className="w-4 h-4 text-[#666666] absolute left-3.5 top-3" />

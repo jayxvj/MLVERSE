@@ -5,7 +5,6 @@ import Sidebar from '@/components/layout/Sidebar';
 import { useStudent } from '@/lib/store';
 import {
   UserCog,
-  RotateCcw,
   Check,
   LogIn,
   LogOut,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { state, resetProgress, openAuthModal, signOut, updateProfileAvatar } = useStudent();
+  const { state, openAuthModal, signOut, updateProfileAvatar } = useStudent();
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(30);
   const [notificationSaved, setNotificationSaved] = useState(false);
   const [avatarSuccess, setAvatarSuccess] = useState(false);
@@ -181,23 +180,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Progress Reset */}
-        <div className="rounded-xl border border-[#303030] bg-[#111111] p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-white">Data Reset</h3>
-          <p className="text-xs text-[#999999] leading-relaxed">
-            Reset all your completed lessons, notes, and quiz submissions to restart with a clean slate.
-          </p>
 
-          <div>
-            <button
-              onClick={resetProgress}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#181818] text-[#D0D0D0] hover:text-white hover:bg-[#252525] border border-[#303030] transition"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Reset All Progress</span>
-            </button>
-          </div>
-        </div>
       </main>
     </div>
   );

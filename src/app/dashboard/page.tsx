@@ -22,7 +22,7 @@ import {
 import InteractiveChart from '@/components/interactive/InteractiveChart';
 
 export default function DashboardPage() {
-  const { state, resetProgress, openAuthModal } = useStudent();
+  const { state, openAuthModal } = useStudent();
 
   const totalLessons = ALL_LESSONS.length;
   const completedCount = state.completedLessons.length;
@@ -63,25 +63,16 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* User Auth or Reset Controls */}
+          {/* User Auth Control */}
           <div className="flex items-center gap-2">
-            {!state.user ? (
+            {!state.user && (
               <button
                 onClick={() => openAuthModal('login')}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-black hover:bg-[#E5E5E5] transition"
               >
                 Sign In to Save Progress
               </button>
-            ) : completedCount > 0 ? (
-              <button
-                onClick={resetProgress}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#111111] text-[#999999] border border-[#303030] hover:text-white transition flex items-center gap-1.5"
-                title="Reset completed items"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>Reset Progress</span>
-              </button>
-            ) : null}
+            )}
           </div>
         </div>
 

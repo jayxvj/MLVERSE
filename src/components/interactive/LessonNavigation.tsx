@@ -75,11 +75,17 @@ export default function LessonNavigation({
           )}
 
           <button
-            onClick={() => toggleCompleteLesson(currentLesson.id, currentLesson.moduleId)}
+            onClick={() => {
+              if (!isCompleted) {
+                toggleCompleteLesson(currentLesson.id, currentLesson.moduleId);
+              }
+            }}
+            disabled={isCompleted}
+            title={isCompleted ? 'Lesson completed (permanent progress record)' : 'Mark this lesson as completed'}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
               isCompleted
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : 'bg-white/10 text-white hover:bg-white/15 border border-white/10'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default'
+                : 'bg-white/10 text-white hover:bg-white/15 border border-white/10 cursor-pointer'
             }`}
           >
             <CheckCircle2 className={`h-4 w-4 ${isCompleted ? 'text-emerald-400' : ''}`} />
